@@ -92,3 +92,25 @@ func TestParseIllegalWaitForState(t *testing.T) {
 	assert.Nil(t, cond)
 	assert.NotNil(t, err)
 }
+
+func TestProcessSubsutite(t *testing.T) {
+	stage := NewCommandStage()
+	stage.SetDirectory("..")
+	stage.AddCommand("diff -u <(cat README.md) README.md")
+	assert.Equal(t, false, stage.Run())
+}
+
+func TestWithShellCommand(t *testing.T) {
+	stage := NewCommandStage()
+	stage.SetDirectory("..")
+	stage.SetCommandShell("bash")
+	stage.AddCommand("diff -u <(cat README.md) README.md")
+	assert.Equal(t, true, stage.Run())
+}
+
+func TestSetDefaultShell(t *testing.T) {
+	stage := NewCommandStage()
+	stage.SetCommandShell("not supported shell")
+	stage.AddCommand("echo ok")
+	assert.Equal(t, true, stage.Run())
+}

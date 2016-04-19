@@ -34,10 +34,24 @@ import (
 	"github.com/walter-cd/walter/log"
 )
 
+// Supports command shells.
+var (
+	shellType = [7]string{
+		"bash",
+		"zsh",
+		"sh",
+		"csh",
+		"tcsh",
+		"ksh",
+		"mksh",
+	}
+)
+
 // CommandStage executes more than one commands.
 type CommandStage struct {
 	BaseStage
 	Command   string `config:"command" is_replace:"false"`
+	Shell     string `config:"shell" is_replace:"true"`
 	Directory string `config:"directory" is_replace:"true"`
 	OnlyIf    string `config:"only_if" is_replace:"false"`
 	WaitFor   string `config:"wait_for" is_replace:"true"`
@@ -52,7 +66,7 @@ type WaitFor struct {
 	Delay float64
 }
 
-// WaitFor wait until the condtions are satisfied
+// Wait wait until the condtions are satisfied
 func (waitFor *WaitFor) Wait() {
 	// delay
 	if waitFor.Delay > 0.0 {
@@ -68,9 +82,8 @@ func (waitFor *WaitFor) Wait() {
 			if isFileExist(waitFor.File) {
 				log.Info("File: " + waitFor.File + " found.")
 				return
-			} else {
-				time.Sleep(10 * time.Millisecond)
 			}
+			time.Sleep(10 * time.Millisecond)
 		}
 	}
 
@@ -81,9 +94,8 @@ func (waitFor *WaitFor) Wait() {
 			if !isFileExist(waitFor.File) {
 				log.Info("File: " + waitFor.File + " removed.")
 				return
-			} else {
-				time.Sleep(10 * time.Millisecond)
 			}
+			time.Sleep(10 * time.Millisecond)
 		}
 	}
 
@@ -93,9 +105,8 @@ func (waitFor *WaitFor) Wait() {
 		for {
 			if isConnect(waitFor.Host, waitFor.Port) {
 				return
-			} else {
-				time.Sleep(10 * time.Millisecond)
 			}
+			time.Sleep(10 * time.Millisecond)
 		}
 	}
 
@@ -106,9 +117,8 @@ func (waitFor *WaitFor) Wait() {
 		for {
 			if !isConnect(waitFor.Host, waitFor.Port) {
 				return
-			} else {
-				time.Sleep(10 * time.Millisecond)
 			}
+			time.Sleep(10 * time.Millisecond)
 		}
 	}
 }
@@ -161,9 +171,8 @@ func ParseWaitFor(waitForStr string) (*WaitFor, error) {
 
 	if validateWaitForCondition(wait) {
 		return wait, nil
-	} else {
-		return nil, errors.New("Illegal condition were found")
 	}
+	return nil, errors.New("Illegal condition were found")
 }
 
 func validateWaitForCondition(wait *WaitFor) bool {
@@ -246,7 +255,7 @@ func (commandStage *CommandStage) runOnlyIf() bool {
 		return true
 	}
 	log.Infof("[command] only_if: found \"only_if\" attribute in stage \"%s\"", commandStage.BaseStage.StageName)
-	cmd := exec.Command("sh", "-c", commandStage.OnlyIf)
+	cmd := exec.Command(withCommandShell(commandStage.Shell), "-c", commandStage.OnlyIf)
 	log.Infof("[command] only_if: %s", commandStage.BaseStage.StageName)
 	log.Debugf("[command] only_if literal: %s", commandStage.OnlyIf)
 	cmd.Dir = commandStage.Directory
@@ -255,7 +264,7 @@ func (commandStage *CommandStage) runOnlyIf() bool {
 }
 
 func (commandStage *CommandStage) runCommand() bool {
-	cmd := exec.Command("sh", "-c", commandStage.Command)
+	cmd := exec.Command(withCommandShell(commandStage.Shell), "-c", commandStage.Command)
 	log.Infof("[command] exec: %s", commandStage.BaseStage.StageName)
 	log.Debugf("[command] exec command literal: %s", commandStage.Command)
 	cmd.Dir = commandStage.Directory
@@ -360,8 +369,23 @@ func (commandStage *CommandStage) SetDirectory(directory string) {
 	commandStage.Directory = directory
 }
 
+// SetCommandShell sets the command shell.
+func (commandStage *CommandStage) SetCommandShell(shell string) {
+	commandStage.Shell = withCommandShell(shell)
+}
+
 //NewCommandStage creates one CommandStage object.
 func NewCommandStage() *CommandStage {
 	stage := CommandStage{Directory: "."}
 	return &stage
+}
+
+// withShellType returns a supported command shell (default is 'sh').
+func withCommandShell(shell string) string {
+	for _, sh := range shellType {
+		if shell == sh {
+			return shell
+		}
+	}
+	return "sh"
 }
